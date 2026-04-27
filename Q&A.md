@@ -22,9 +22,13 @@ When compared to the OWASP Top 10 2021, the newest category in the OWASP Top 10 
 
 ```
 **4. What is IDOR**
+
 **5. What are the common ways to check the IDOR vulnerability**
+
 **6. What is the Impact/Highest Impact of IDOR vulnerability**
+
 **7. What are Proper Mitigation/Remediation for IDOR Vulnerability**
+
 ### Scenario-Based Questions
 ```
 1. A web application uses the following URL to show user profiles: https://app.com/profile?id=101
