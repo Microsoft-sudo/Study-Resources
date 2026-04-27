@@ -24,6 +24,9 @@ When compared to the OWASP Top 10 2021, the newest category in the OWASP Top 10 
 **4. What is IDOR**
 
 **5. What are the common ways to check the IDOR vulnerability**
+```
+First, we will check the parameter or ID that refers to the object identifier. This parameter can be in the URL, the request body, or the session.
+```
 
 **6. What is the Impact/Highest Impact of IDOR vulnerability**
 
