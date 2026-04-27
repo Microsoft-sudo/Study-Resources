@@ -29,8 +29,18 @@ First, we will check the parameter or ID that refers to the object identifier. T
 ```
 
 **6. What is the Impact/Highest Impact of IDOR vulnerability**
+```
+1. An attacker can view unauthorized user details or other sensitive information, even when they only have read-only (view) access.
+2. For higher impact, if an attacker is able to perform actions like create, update, or delete user data, this can lead to privilege escalation via IDOR.
+```
 
 **7. What are Proper Mitigation/Remediation for IDOR Vulnerability**
+```
+1. Always check if the logged-in user is allowed to access the requested resource.
+2. Use Random IDs (UUIDs) or Hashed values instead of /profile?id=101
+3. RBAC (Role-Based Access Control): user, admin, etc. Ensure users can only access what their role allows
+4. Validate on Server Side
+```
 
 ### Scenario-Based Questions
 ```
