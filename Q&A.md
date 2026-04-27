@@ -2,7 +2,7 @@
 ```
 OWASP Top 10 is a list of the most critical web application security risks. It is created by OWASP to help developers and security professionals understand the most common and dangerous vulnerabilities.
    The List of web OWASP top 10 2025 are:
-   - A01 Broken Access Control
+   - A01    Broken Access Control
    - A02	Security Misconfiguration
    - A03	Software Supply Chain Failures
    - A04	Cryptographic Failures
